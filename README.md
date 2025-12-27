@@ -4,55 +4,27 @@ A Vim-native input interface for Claude Code. Solve Japanese IME (and other inpu
 
 ## Features
 
-- 🎯 **Vim-native editing** - Full Vim motions, insert/normal mode, all your muscle memory works
-- 🇯🇵 **IME-friendly** - Perfect Japanese/Chinese/Korean input (no terminal mode issues)
-- 📜 **Input history** - Navigate with `<C-p>` / `<C-n>`
-- 🔌 **Multiple backends** - tmux, claudecode.nvim, wezterm
-- 📋 **Selection support** - Send visual selection as code block
-- ⌨️ **Auto-return** - Focus returns to editor after sending
+- **Vim-native editing** - Full Vim motions, insert/normal mode, all your muscle memory works
+- **IME-friendly** - Perfect Japanese/Chinese/Korean input (no terminal mode issues)
+- **Multiple backends** - tmux (priority), claudecode.nvim
+- **Selection support** - Send visual selection as code block
+- **Auto-return** - Focus returns to editor after sending
 
 ## Installation
 
 ### lazy.nvim
 
 ```lua
-return {
-  "your-username/claude-input.nvim",
+{
+  "3kz2501/claude-input.nvim",
   config = function()
     require("claude-input").setup({
-      backend = "auto", -- "auto" | "tmux" | "claudecode" | "wezterm"
+      backend = "auto", -- "auto" | "tmux" | "claudecode"
     })
   end,
   keys = {
     { "<leader>ci", "<cmd>ClaudeInput<cr>", desc = "Claude Input" },
     { "<leader>cs", "<cmd>ClaudeInputWithSelection<cr>", mode = "v", desc = "Claude Input with Selection" },
-  },
-}
-```
-
-### With claudecode.nvim
-
-```lua
-return {
-  {
-    "coder/claudecode.nvim",
-    dependencies = { "folke/snacks.nvim" },
-    config = true,
-    keys = {
-      { "<leader>cc", "<cmd>ClaudeCode<cr>", desc = "Toggle Claude" },
-    },
-  },
-  {
-    "your-username/claude-input.nvim",
-    config = function()
-      require("claude-input").setup({
-        backend = "claudecode",
-      })
-    end,
-    keys = {
-      { "<leader>ci", "<cmd>ClaudeInput<cr>", desc = "Claude Input" },
-      { "<leader>cs", "<cmd>ClaudeInputWithSelection<cr>", mode = "v", desc = "Claude Input with Selection" },
-    },
   },
 }
 ```
@@ -64,26 +36,22 @@ return {
 1. Open input window: `<leader>ci` (or `:ClaudeInput`)
 2. Type your prompt (Japanese, English, whatever!)
 3. Press `<Esc>` to go to normal mode
-4. Press `<Enter>` to send
+4. Type `:W` to send (or `<leader>w`)
 
 ### With Selection
 
 1. Select code in visual mode
 2. Press `<leader>cs` (or `:ClaudeInputWithSelection`)
 3. The selection is inserted as a code block
-4. Add your prompt and send
+4. Add your prompt and send with `:W`
 
 ### Keymaps in Input Window
 
 | Mode | Key | Action |
 |------|-----|--------|
-| Normal | `<CR>` | Send and close |
-| Normal | `<C-s>` | Send but keep window open |
-| Normal | `q` / `<Esc>` | Cancel and close |
-| Normal | `<C-p>` | Previous history |
-| Normal | `<C-n>` | Next history |
-| Normal | `?` | Show help |
-| Insert | `<Enter>` | Newline (normal behavior) |
+| Normal | `:W` | Send and close |
+| Normal | `<leader>w` | Send and close |
+| Normal | `q` | Cancel and close |
 | Insert | All vim keys | Normal vim insert mode |
 
 ## Configuration
@@ -91,50 +59,17 @@ return {
 ```lua
 require("claude-input").setup({
   -- Backend selection
-  backend = "auto", -- "auto" | "tmux" | "claudecode" | "wezterm"
-
-  -- Window appearance
-  window = {
-    width = 0.6,      -- 60% of editor width
-    height = 0.4,     -- 40% of editor height
-    border = "rounded",
-    title = " Claude Input ",
-    title_pos = "center",
-  },
-
-  -- Keymaps (in input window)
-  keymaps = {
-    send = "<CR>",
-    send_stay = "<C-s>",
-    cancel = "q",
-    history_prev = "<C-p>",
-    history_next = "<C-n>",
-  },
+  backend = "auto", -- "auto" | "tmux" | "claudecode"
 
   -- tmux backend settings
   tmux = {
     pane = nil, -- nil = auto-detect, or specify like "%1"
   },
 
-  -- wezterm backend settings
-  wezterm = {
-    pane_id = nil, -- nil = auto-detect
-  },
-
   -- claudecode.nvim settings
   claudecode = {
-    -- Uses :ClaudeCodeSend internally
+    -- Uses terminal buffer directly
   },
-
-  -- History settings
-  history = {
-    enabled = true,
-    max_entries = 100,
-    save_path = vim.fn.stdpath("data") .. "/claude-input-history.json",
-  },
-
-  -- Include visual selection as code block
-  include_selection = true,
 })
 ```
 
@@ -149,7 +84,7 @@ require("claude-input").setup({
 
 ## Backends
 
-### tmux
+### tmux (Priority)
 
 Sends text to a tmux pane running Claude Code.
 
@@ -157,24 +92,17 @@ Sends text to a tmux pane running Claude Code.
 - Running inside tmux
 - Claude Code running in another tmux pane
 
-**Auto-detection:** Looks for panes with "claude" in the command or title.
+**Auto-detection:** Looks for panes with "claude" in the command name.
 
 ### claudecode.nvim
 
-Integrates with [coder/claudecode.nvim](https://github.com/coder/claudecode.nvim).
+Integrates with [claudecode.nvim](https://github.com/anthropics/claudecode.nvim).
 
 **Requirements:**
 - claudecode.nvim installed and configured
 - Claude Code terminal open (`:ClaudeCode`)
 
-### wezterm
-
-Sends text to a wezterm pane running Claude Code.
-
-**Requirements:**
-- Running inside wezterm
-- Claude Code running in another wezterm pane
-- `wezterm` CLI available
+**Note:** Only available when claudecode.nvim terminal is active.
 
 ## Why?
 
