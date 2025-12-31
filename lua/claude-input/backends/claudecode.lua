@@ -40,6 +40,22 @@ local function get_terminal_chan(bufnr)
   return nil
 end
 
+-- Get the window displaying the terminal buffer
+local function get_terminal_win(bufnr)
+  if not bufnr or not vim.api.nvim_buf_is_valid(bufnr) then
+    return nil
+  end
+
+  -- Find window showing this buffer
+  for _, win in ipairs(vim.api.nvim_list_wins()) do
+    if vim.api.nvim_win_get_buf(win) == bufnr then
+      return win
+    end
+  end
+
+  return nil
+end
+
 function M.is_available()
   -- Check if claudecode.nvim is loaded
   local ok, _ = pcall(require, "claudecode")
@@ -91,6 +107,15 @@ function M.status()
     terminal_active = terminal_active,
     terminal_bufnr = bufnr,
   }
+end
+
+-- Get window to focus after sending (for claudecode, the terminal window)
+function M.get_focus_win()
+  local bufnr = get_terminal_bufnr()
+  if bufnr then
+    return get_terminal_win(bufnr)
+  end
+  return nil
 end
 
 return M

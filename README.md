@@ -22,6 +22,7 @@ A Vim-native input interface for Claude Code. Solve Japanese IME (and other inpu
       backend = "auto", -- "auto" | "tmux" | "claudecode"
     })
   end,
+  cmd = { "ClaudeInput", "ClaudeInputWithSelection", "ClaudeInputSetBackend", "ClaudeInputStatus" },
   keys = {
     { "<leader>ci", "<cmd>ClaudeInput<cr>", desc = "Claude Input" },
     { "<leader>cs", "<cmd>ClaudeInputWithSelection<cr>", mode = "v", desc = "Claude Input with Selection" },

@@ -72,6 +72,20 @@ function M.get_current()
 	return current_backend
 end
 
+-- Re-detect backend if current one is unavailable
+function M.ensure_available()
+	if current_backend and current_backend.is_available and current_backend.is_available() then
+		return current_backend
+	end
+
+	-- Current backend unavailable, try to find another
+	local new_backend = detect_backend()
+	if new_backend then
+		current_backend = new_backend
+	end
+	return current_backend
+end
+
 function M.list_available()
 	local available = {}
 

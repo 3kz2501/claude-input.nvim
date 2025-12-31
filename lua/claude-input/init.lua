@@ -1,11 +1,11 @@
 -- claude-input.nvim
 -- A Vim-native input interface for Claude Code
--- Supports tmux, claudecode.nvim, and wezterm backends
+-- Supports tmux and claudecode.nvim backends
 
 local M = {}
 
 M.config = {
-  backend = "auto", -- "auto" | "tmux" | "claudecode" | "wezterm"
+  backend = "auto", -- "auto" | "tmux" | "claudecode"
 
   window = {
     width = 0.6,
@@ -25,10 +25,6 @@ M.config = {
 
   tmux = {
     pane = nil, -- nil = auto detect, or specify like "%1"
-  },
-
-  wezterm = {
-    pane_id = nil, -- nil = auto detect
   },
 
   claudecode = {
@@ -74,7 +70,7 @@ function M.setup(opts)
   end, {
     nargs = 1,
     complete = function()
-      return { "auto", "tmux", "claudecode", "wezterm" }
+      return { "auto", "tmux", "claudecode" }
     end,
     desc = "Set Claude input backend",
   })
@@ -114,31 +110,38 @@ function M.open(initial_text)
   -- Keymaps for this buffer
   local opts = { buffer = buf, silent = true }
 
+  -- Helper to close input window safely
+  local function close_input_win()
+    if vim.api.nvim_win_is_valid(win) then
+      vim.api.nvim_win_close(win, true)
+    end
+  end
+
   -- :w to send
   vim.keymap.set("n", "<leader>w", function()
     local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
     local text = vim.trim(table.concat(lines, "\n"))
+    close_input_win()
     if text ~= "" then
       M.send(text)
       vim.notify("Sent to Claude!", vim.log.levels.INFO)
     end
-    vim.cmd("close")
   end, opts)
 
   -- Also map :w command
   vim.api.nvim_buf_create_user_command(buf, "W", function()
     local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
     local text = vim.trim(table.concat(lines, "\n"))
+    close_input_win()
     if text ~= "" then
       M.send(text)
       vim.notify("Sent to Claude!", vim.log.levels.INFO)
     end
-    vim.cmd("close")
   end, {})
 
   -- q to cancel
   vim.keymap.set("n", "q", function()
-    vim.cmd("close")
+    close_input_win()
   end, opts)
 
   -- Go to end and insert mode
@@ -189,15 +192,35 @@ function M.send(text)
     history.add(text)
   end
 
-  -- Send via backend
-  local backend = backends.get_current()
+  -- Send via backend (re-detect if current is unavailable)
+  local backend = backends.ensure_available()
   if backend then
     local ok, msg = backend.send(text)
     if not ok then
-      vim.notify("claude-input: " .. (msg or "failed to send"), vim.log.levels.ERROR)
-    elseif msg then
+      -- Try re-detecting backend and retry once
+      local new_backend = backends.ensure_available()
+      if new_backend and new_backend ~= backend then
+        ok, msg = new_backend.send(text)
+        if ok then
+          backend = new_backend
+        end
+      end
+      if not ok then
+        vim.notify("claude-input: " .. (msg or "failed to send"), vim.log.levels.ERROR)
+        return
+      end
+    end
+    if msg then
       -- Success with message (e.g., copied to clipboard)
       vim.notify("claude-input: " .. msg, vim.log.levels.INFO)
+    end
+
+    -- Focus the backend's target window if available
+    if backend.get_focus_win then
+      local win = backend.get_focus_win()
+      if win and vim.api.nvim_win_is_valid(win) then
+        vim.api.nvim_set_current_win(win)
+      end
     end
   else
     vim.notify("claude-input: no backend available", vim.log.levels.ERROR)

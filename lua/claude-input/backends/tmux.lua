@@ -7,10 +7,30 @@ M.name = "tmux"
 
 local config = {}
 local detected_pane = nil
+local cache = {
+  tmux_available = nil,
+  pane_list = nil,
+  pane_list_time = 0,
+}
+local CACHE_TTL = 2000 -- 2 seconds
+
+-- Forward declarations
+local find_claude_pane
 
 function M.setup(cfg)
   config = cfg
   detected_pane = nil
+  cache = { tmux_available = nil, pane_list = nil, pane_list_time = 0 }
+end
+
+-- Check if tmux command exists (cached permanently)
+local function has_tmux_cmd()
+  if cache.tmux_available ~= nil then
+    return cache.tmux_available
+  end
+  vim.fn.system("which tmux")
+  cache.tmux_available = vim.v.shell_error == 0
+  return cache.tmux_available
 end
 
 function M.is_available()
@@ -20,8 +40,12 @@ function M.is_available()
   end
 
   -- Check if tmux command exists
-  vim.fn.system("which tmux")
-  return vim.v.shell_error == 0
+  if not has_tmux_cmd() then
+    return false
+  end
+
+  -- Check if Claude pane actually exists (uses cached result with TTL)
+  return find_claude_pane() ~= nil
 end
 
 -- Get current pane id
@@ -34,9 +58,15 @@ local function get_current_pane()
 end
 
 -- Find a pane running Claude Code
-local function find_claude_pane()
+find_claude_pane = function()
   if config.pane then
     return config.pane
+  end
+
+  -- Use cached result if still valid (including nil results)
+  local now = vim.loop.now()
+  if cache.pane_list_time > 0 and (now - cache.pane_list_time) < CACHE_TTL then
+    return cache.pane_list
   end
 
   local current_pane = get_current_pane()
@@ -52,11 +82,15 @@ local function find_claude_pane()
     local pane_id, cmd = line:match("([^:]+):(.+)")
     if pane_id and pane_id ~= current_pane then
       if cmd and cmd:lower():match("claude") then
+        cache.pane_list = pane_id
+        cache.pane_list_time = now
         return pane_id
       end
     end
   end
 
+  cache.pane_list = nil
+  cache.pane_list_time = now
   return nil
 end
 
